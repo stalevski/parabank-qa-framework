@@ -78,7 +78,7 @@ jobs:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-api-${{ matrix.region }}
           path: playwright-report/
@@ -111,7 +111,7 @@ jobs:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-web-${{ matrix.region }}
           path: playwright-report/
@@ -141,7 +141,7 @@ jobs:
           REGION: us
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-known-defects
           path: playwright-report/
