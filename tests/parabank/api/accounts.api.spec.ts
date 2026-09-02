@@ -33,9 +33,43 @@ test.describe('ParaBank API — Accounts', () => {
     const [from, to] = seededAccounts;
     const amount = RandomDataGenerator.transferAmount();
 
-    const confirmation = await apiClient.transfer(from.id, to.id, amount);
+    const confirmation = await test.step(`transfer $${amount.toFixed(2)} from ${from.id} to ${to.id}`, () =>
+      apiClient.transfer(from.id, to.id, amount));
 
     expect(confirmation).toContain('Successfully transferred');
+  });
+
+  test('deposits funds into an account', async ({ apiClient, seededAccounts }) => {
+    const account = seededAccounts[0];
+    const amount = RandomDataGenerator.transferAmount();
+
+    const confirmation = await test.step(`deposit $${amount.toFixed(2)} into account ${account.id}`, () =>
+      apiClient.deposit(account.id, amount));
+
+    expect(confirmation).toContain('Successfully deposited');
+  });
+
+  test('returns a single transaction by id', async ({ apiClient, seededAccounts }) => {
+    const accountId = seededAccounts[0].id;
+
+    const transactions = await test.step(`list transactions for account ${accountId}`, () =>
+      apiClient.getTransactions(accountId));
+    expect(transactions.length).toBeGreaterThan(0);
+
+    const transaction = await test.step(`fetch transaction ${transactions[0].id}`, () =>
+      apiClient.getTransaction(transactions[0].id));
+
+    expect(transaction.id).toBe(transactions[0].id);
+    expect(transaction.accountId).toBe(accountId);
+  });
+
+  test('accepts a zero-amount transfer (edge case)', async ({ apiClient, seededAccounts }) => {
+    const [from, to] = seededAccounts;
+
+    const confirmation = await test.step(`transfer $0 from ${from.id} to ${to.id}`, () =>
+      apiClient.transfer(from.id, to.id, 0));
+
+    expect(confirmation).toContain('Successfully transferred $0');
   });
 
   test('account and transaction responses conform to the OpenAPI contract (schema validation)', async ({

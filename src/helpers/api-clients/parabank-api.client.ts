@@ -52,6 +52,14 @@ export class ParabankApiClient extends BaseApiClient {
     return this.getJson<TransactionDto[]>(`accounts/${accountId}/transactions`);
   }
 
+  async getTransaction(transactionId: number): Promise<TransactionDto> {
+    return this.getJson<TransactionDto>(`transactions/${transactionId}`);
+  }
+
+  async getTransactionsByAmount(accountId: number, amount: number): Promise<TransactionDto[]> {
+    return this.getJson<TransactionDto[]>(`accounts/${accountId}/transactions/amount/${amount}`);
+  }
+
   async createAccount(customerId: number, newAccountType: AccountType, fromAccountId: number): Promise<AccountDto> {
     return this.postJson<AccountDto>('createAccount', {
       params: { customerId, newAccountType, fromAccountId },
