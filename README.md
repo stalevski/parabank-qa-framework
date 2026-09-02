@@ -67,6 +67,18 @@ npm run test:web                # Web only (Chromium + Firefox + WebKit)
 
 ---
 
+## Docker
+
+A [`Dockerfile`](Dockerfile) based on the Playwright image runs the whole suite
+without a local Node/browser install:
+
+```bash
+docker build -t quipu-task .
+docker run -e REGION=eu quipu-task          # override region at run time
+```
+
+---
+
 ## Region switching
 
 The active region is selected by the `REGION` environment variable — never by
@@ -183,8 +195,11 @@ vendor fix shows up as a failing test rather than silent drift.
 
 `.github/workflows/playwright.yml` runs **lint**, then the **API** and **Web**
 jobs, each matrixed across `us` / `eu` / `apac` and each independently runnable
-via the `workflow_dispatch` `layer` input. The public demo's flakiness is
-handled with `continue-on-error`, so external instability never blocks a merge.
+via the `workflow_dispatch` `layer` input. `@known-defect` pins run in a separate
+informational job so a vendor fix surfaces there without polluting the main
+signal, and every HTML report is uploaded as an artifact and published to
+**GitHub Pages**. The public demo's flakiness is handled with
+`continue-on-error`, so external instability never blocks a merge.
 
 ---
 
