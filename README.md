@@ -1,5 +1,6 @@
 # Quipu QA Challenge — Multi-Region Playwright Framework
 
+[![CI](https://github.com/stalevski/quipu-task/actions/workflows/playwright.yml/badge.svg)](https://github.com/stalevski/quipu-task/actions/workflows/playwright.yml)
 [![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A524-339933?logo=node.js&logoColor=white)](.nvmrc)
