@@ -176,7 +176,7 @@ jobs:
           for d in */; do printf '<li><a href="%s">%s</a></li>\n' "$d" "${d%/}" >> index.html; done
           printf '</ul>\n' >> index.html
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
