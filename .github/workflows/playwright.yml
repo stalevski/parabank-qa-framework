@@ -72,8 +72,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Run API tests
-        run: npm run test:api
+      - name: Run API tests (excluding known-defect pins)
+        run: npx playwright test --project=parabank-api --grep-invert @known-defect
         env:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
@@ -116,3 +116,71 @@ jobs:
           name: playwright-report-web-${{ matrix.region }}
           path: playwright-report/
           retention-days: 14
+
+  # Pins that assert *current buggy* ParaBank behaviour. They are run separately
+  # from the main suite so a vendor fix surfaces as a red pin rather than noise
+  # inside the green happy-path signal.
+  known-defects:
+    name: Known-defect pins (informational)
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    continue-on-error: true
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run known-defect pins
+        run: npx playwright test --project=parabank-api --grep @known-defect
+        env:
+          REGION: us
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-known-defects
+          path: playwright-report/
+          retention-days: 14
+
+  # Publishes every report artifact (API/Web per region) to GitHub Pages.
+  # Requires GitHub Pages to be enabled once: Settings > Pages > Source = GitHub
+  # Actions. Runs even when the demo is flaky, so failures are still inspectable.
+  publish-report:
+    name: Publish HTML report to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    if: always()
+    continue-on-error: true
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: site
+      - name: Generate index page
+        run: |
+          cd site
+          printf '<h1>Playwright reports</h1><ul>\n' > index.html
+          for d in */; do printf '<li><a href="%s">%s</a></li>\n' "$d" "${d%/}" >> index.html; done
+          printf '</ul>\n' >> index.html
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
