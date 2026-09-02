@@ -1,0 +1,38 @@
+{
+  "name": "quipu-task",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-region Playwright + TypeScript QA framework targeting the ParaBank demo banking app (web UI + REST API).",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:web": "playwright test --project=parabank-web-chromium --project=parabank-web-firefox --project=parabank-web-webkit",
+    "test:api": "playwright test --project=parabank-api",
+    "test:regions": "playwright test --project=parabank-regions",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "doctor": "node --version && npm --version && npx playwright --version && npx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^22.0.0",
+    "ajv": "^8.17.1",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-playwright": "^2.11.0",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0"
+  }
+}
