@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ParaBank Account",
+  "description": "Derived from the published OpenAPI schema 'Account' (components/schemas/Account).",
+  "type": "object",
+  "required": ["id", "customerId", "type", "balance"],
+  "properties": {
+    "id": { "type": "integer" },
+    "customerId": { "type": "integer" },
+    "type": { "type": "string", "enum": ["CHECKING", "SAVINGS", "LOAN"] },
+    "balance": { "type": "number" }
+  },
+  "additionalProperties": true
+}
