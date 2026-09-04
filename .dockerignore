@@ -1,0 +1,11 @@
+node_modules
+playwright-report
+test-results
+blob-report
+dist
+coverage
+.git
+.gitignore
+.env
+Dockerfile
+.dockerignore
