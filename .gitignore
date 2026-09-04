@@ -1,0 +1,23 @@
+node_modules/
+playwright-report/
+test-results/
+blob-report/
+dist/
+coverage/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Build & lint caches
+*.tsbuildinfo
+.eslintcache
+
+# IDE / editor local files
+.idea/
+.history/
+*.swp
+*.swo
+
+# Playwright auth state files (regenerated per run via setup projects)
+playwright/.auth/
