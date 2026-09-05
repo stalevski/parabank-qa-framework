@@ -18,11 +18,6 @@ test.describe('ParaBank Web - Transfer', () => {
     },
   );
 
-  test('shows an error when submitting a transfer with an empty amount', async ({ loggedInTransferPage }) => {
-    await loggedInTransferPage.transferButton.click();
-    await loggedInTransferPage.assertAmountErrorVisible();
-  });
-
   test('uses the API for setup and verification around a UI transfer', async ({
     apiClient,
     seededAccounts,

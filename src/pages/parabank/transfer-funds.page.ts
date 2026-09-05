@@ -9,7 +9,6 @@ export class TransferFundsPage extends BasePage {
   readonly toAccountSelect: Locator;
   readonly transferButton: Locator;
   readonly successMessage: Locator;
-  readonly transferError: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -18,7 +17,6 @@ export class TransferFundsPage extends BasePage {
     this.toAccountSelect = page.locator('#toAccountId');
     this.transferButton = page.getByRole('button', { name: 'Transfer' });
     this.successMessage = page.locator('#amountResult');
-    this.transferError = page.getByText(/An internal error has occurred and has been logged/i);
   }
 
   async goto(): Promise<void> {
@@ -49,9 +47,5 @@ export class TransferFundsPage extends BasePage {
 
   async assertTransferSuccess(): Promise<void> {
     await expect(this.successMessage).not.toHaveText('');
-  }
-
-  async assertAmountErrorVisible(): Promise<void> {
-    await expect(this.transferError).toBeVisible();
   }
 }

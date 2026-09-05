@@ -29,4 +29,10 @@ test.describe('ParaBank Web - Login', () => {
     await homePage.assertLoaded();
     await expect(homePage.usernameInput).toBeVisible();
   });
+
+  test('shows an error message when logging in with an invalid password', async ({ homePage, region }) => {
+    await homePage.goto();
+    await homePage.login(region.credentials.seededUsername, 'definitely-wrong-password');
+    await expect(homePage.loginError).toBeVisible();
+  });
 });
