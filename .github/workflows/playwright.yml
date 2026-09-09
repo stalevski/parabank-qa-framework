@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -65,7 +65,7 @@ jobs:
       matrix:
         region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -96,7 +96,7 @@ jobs:
       matrix:
         region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -128,7 +128,7 @@ jobs:
     continue-on-error: true
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -164,7 +164,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download all reports
         uses: actions/download-artifact@v4
         with:
