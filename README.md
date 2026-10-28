@@ -45,6 +45,7 @@ npm run test:web                # Web only (Chromium + Firefox + WebKit)
 | Web layer only (3 browsers) | `npm run test:web`                      |
 | Region parity checks        | `npm run test:regions`                  |
 | Smoke tags only             | `npm run test:smoke`                    |
+| Random test order           | `npm run test:shuffle`                  |
 | Open the HTML report        | `npm run report`                        |
 | Lint / format               | `npm run lint` · `npm run format:check` |
 | Typecheck + tool sanity     | `npm run doctor`                        |
@@ -153,7 +154,7 @@ Coverage mapped to the tests that provide it:
 | Requirement                     | API                                             | Web                                                                 |
 | ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------- |
 | Happy path                      | `customers.api.spec.ts`, `accounts.api.spec.ts` | `login.web.spec.ts`, `transfer.web.spec.ts`, `register.web.spec.ts` |
-| Error state                     | bad login `400`, unknown id `400`               | invalid-password login → error message                              |
+| Error state                     | bad login `400`, unknown id `400`               | invalid-password login (pinned as known defect AUTH-1)              |
 | Idempotency / edge case         | repeated login returns the same id              | logout/login session round-trip                                     |
 | Web test using an API operation | -                                               | `transfer.web.spec.ts` (API setup + API verification)               |
 | Schema validation               | customer / account / transaction via `ajv`      | -                                                                   |
@@ -181,11 +182,13 @@ fixes one, the matching test starts failing instead of silently drifting.
 
 `.github/workflows/playwright.yml` runs `lint` first, then the API and Web jobs,
 each matrixed over `us` / `eu` / `apac`. You can also pick a single layer from
-the `workflow_dispatch` inputs. The `@known-defect` pins run in their own
-informational job so a vendor fix doesn't muddy the main signal, and every HTML
-report is uploaded as an artifact and published to GitHub Pages. The public
-demo's flakiness is handled with `continue-on-error`, so external instability
-never blocks a merge.
+the `workflow_dispatch` inputs. The `@known-defect` pins (API and Web) run in
+their own informational job so a vendor fix doesn't muddy the main signal, a
+third informational job re-runs the smoke tests in random order (`--shuffle`) to
+catch order dependence, and every HTML report is uploaded as an artifact.
+Reports are published to GitHub Pages from `main` only, so a pull request can
+never overwrite the published site. The public demo's flakiness is handled with
+`continue-on-error`, so external instability never blocks a merge.
 
 ---
 

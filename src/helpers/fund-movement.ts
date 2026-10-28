@@ -27,3 +27,12 @@ export function confirmationMessage(
       return `Successfully withdrew ${money} from account #${accountId}`;
   }
 }
+
+/**
+ * The sentence the transfer screen renders in its result panel. It is worded
+ * differently from the API confirmation, so it gets its own builder instead of
+ * being asserted as a loose fragment.
+ */
+export function uiTransferConfirmation(amount: number, fromAccountId: number, toAccountId: number): string {
+  return `$${formatAmount(amount)} has been transferred from account #${fromAccountId} to account #${toAccountId}.`;
+}

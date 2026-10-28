@@ -12,6 +12,7 @@
     "test:api": "playwright test --project=parabank-api",
     "test:regions": "playwright test --project=parabank-regions",
     "test:smoke": "playwright test --grep @smoke",
+    "test:shuffle": "playwright test --shuffle",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report": "playwright show-report",
@@ -23,16 +24,16 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.1",
-    "@types/node": "^22.0.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
     "ajv": "^8.17.1",
-    "dotenv": "^17.4.2",
-    "eslint": "^10.9.1",
+    "dotenv": "^18.0.9",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-playwright": "^2.11.0",
-    "globals": "^17.11.0",
-    "prettier": "^3.9.6",
+    "eslint-plugin-playwright": "^2.12.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.68.0"
+    "typescript-eslint": "^8.72.1"
   }
 }

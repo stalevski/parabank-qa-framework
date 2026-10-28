@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from '@core/ui/base.page';
 import { formatAmount } from '@helpers/money';
+import { uiTransferConfirmation } from '@helpers/fund-movement';
 
 /** Transfer funds form (`/transfer.htm`). */
 export class TransferFundsPage extends BasePage {
@@ -8,15 +9,20 @@ export class TransferFundsPage extends BasePage {
   readonly fromAccountSelect: Locator;
   readonly toAccountSelect: Locator;
   readonly transferButton: Locator;
-  readonly successMessage: Locator;
+  /** Result panel shown after a successful transfer. */
+  readonly successPanel: Locator;
+  private readonly form: Locator;
 
   constructor(page: Page) {
     super(page);
-    this.amountInput = page.locator('#amount');
-    this.fromAccountSelect = page.locator('#fromAccountId');
-    this.toAccountSelect = page.locator('#toAccountId');
+    // The form is the natural scope for its own controls, so the fields are
+    // resolved inside it rather than page-wide (locator.within()).
+    this.form = page.locator('#transferForm');
+    this.amountInput = page.locator('#amount').within(this.form);
+    this.fromAccountSelect = page.locator('#fromAccountId').within(this.form);
+    this.toAccountSelect = page.locator('#toAccountId').within(this.form);
     this.transferButton = page.getByRole('button', { name: 'Transfer' });
-    this.successMessage = page.locator('#amountResult');
+    this.successPanel = page.locator('#showResult');
   }
 
   async goto(): Promise<void> {
@@ -45,7 +51,9 @@ export class TransferFundsPage extends BasePage {
       .evaluateAll((options) => options.map((option) => option.getAttribute('value') ?? ''));
   }
 
-  async assertTransferSuccess(): Promise<void> {
-    await expect(this.successMessage).not.toHaveText('');
+  async assertTransferSuccess(amount: number, fromAccountId: number, toAccountId: number): Promise<void> {
+    await expect(this.successPanel).toBeVisible();
+    await expect(this.successPanel).toContainText('Transfer Complete!');
+    await expect(this.successPanel).toContainText(uiTransferConfirmation(amount, fromAccountId, toAccountId));
   }
 }
