@@ -32,8 +32,13 @@ their own data and never assert on a specific seeded balance.
 
 ## Web quirks
 
-- Login errors show up as a paragraph in the right-hand panel
-  ("The username and password could not be verified.").
+- **AUTH-1 - the demo login does not validate the password.** Observed
+  2026-10-28: submitting any password for `john` lands on `/overview.htm` as
+  John Smith, and a username that was never registered also produces an
+  authenticated session (under an arbitrary customer). The
+  "The username and password could not be verified." paragraph is never
+  rendered any more, so `login.web.spec.ts` pins the current behaviour as
+  `@known-defect` rather than asserting the message.
 - Submitting the transfer form with an empty amount shows the generic
   "An internal error has occurred and has been logged." page instead of the
   friendlier inline "The amount cannot be empty." message.

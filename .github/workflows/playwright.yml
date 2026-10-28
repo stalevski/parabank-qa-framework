@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -65,8 +65,8 @@ jobs:
       matrix:
         region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -78,7 +78,7 @@ jobs:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-api-${{ matrix.region }}
           path: playwright-report/
@@ -96,8 +96,8 @@ jobs:
       matrix:
         region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -106,12 +106,12 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Run Web tests
-        run: npm run test:web
+        run: npm run test:web -- --grep-invert @known-defect
         env:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-web-${{ matrix.region }}
           path: playwright-report/
@@ -124,37 +124,69 @@ jobs:
     name: Known-defect pins (informational)
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 15
+    timeout-minutes: 20
     continue-on-error: true
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Run known-defect pins
+      - name: Run API known-defect pins
         run: npx playwright test --project=parabank-api --grep @known-defect
+        env:
+          REGION: us
+      - name: Install Chromium for the web pins
+        run: npx playwright install --with-deps chromium
+      - name: Run Web known-defect pins
+        run: npx playwright test --project=parabank-web-chromium --grep @known-defect
         env:
           REGION: us
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-known-defects
           path: playwright-report/
           retention-days: 14
 
+  # Order-independence check: Playwright 1.64's --shuffle randomises the run
+  # order, which surfaces tests that quietly depend on another test running
+  # first. Informational only - the demo is external, so it can't block merges.
+  shuffle:
+    name: Shuffled smoke run (informational)
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+    continue-on-error: true
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'web' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run smoke tests in random order
+        run: npm run test:shuffle -- --project=parabank-web-chromium --grep @smoke
+        env:
+          REGION: us
+
   # Publishes every report artifact (API/Web per region) to GitHub Pages.
   # Requires GitHub Pages to be enabled once: Settings > Pages > Source = GitHub
-  # Actions. Runs even when the demo is flaky, so failures are still inspectable.
+  # Actions. Only runs on main so pull requests never overwrite the published
+  # site (and never leave a red deploy check on a dependency bump).
   publish-report:
     name: Publish HTML report to GitHub Pages
     runs-on: ubuntu-latest
     needs: [api, web]
-    if: always()
+    if: ${{ always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
     continue-on-error: true
     permissions:
       contents: read
@@ -164,9 +196,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download all reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: site
       - name: Generate index page
@@ -183,4 +215,4 @@ jobs:
           path: site
       - id: deployment
         name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

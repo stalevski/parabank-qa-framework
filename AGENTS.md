@@ -50,6 +50,7 @@ Path aliases (see `tsconfig.json`): `@config`, `@core/*`, `@pages/*`,
 | Web layer     | `npm run test:web` (Chromium/Firefox/WebKit) |
 | Region parity | `npm run test:regions`                       |
 | Smoke         | `npm run test:smoke`                         |
+| Shuffle order | `npm run test:shuffle`                       |
 | Lint / format | `npm run lint` · `npm run format:check`      |
 | Type check    | `npm run doctor` (also prints tool versions) |
 | HTML report   | `npm run report`                             |

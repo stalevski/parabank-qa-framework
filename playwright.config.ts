@@ -16,7 +16,12 @@ export default defineConfig({
   },
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
-    trace: 'on-first-retry',
+    // Aria snapshots ride along with the trace (Playwright 1.63+), so a failed
+    // demo interaction can be inspected as an accessibility tree, not just DOM.
+    trace: {
+      mode: 'on-first-retry',
+      snapshots: { dom: true, aria: true },
+    },
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 15_000,

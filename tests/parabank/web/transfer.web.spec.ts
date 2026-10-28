@@ -14,7 +14,7 @@ test.describe('ParaBank Web - Transfer', () => {
       const amount = RandomDataGenerator.transferAmount();
 
       await loggedInTransferPage.transfer(fromAccountId, toAccountId, amount);
-      await loggedInTransferPage.assertTransferSuccess();
+      await loggedInTransferPage.assertTransferSuccess(amount, fromAccountId, toAccountId);
     },
   );
 
@@ -32,7 +32,7 @@ test.describe('ParaBank Web - Transfer', () => {
 
     // Act via UI.
     await loggedInTransferPage.transfer(fromAccount.id, toAccount.id, amount);
-    await loggedInTransferPage.assertTransferSuccess();
+    await loggedInTransferPage.assertTransferSuccess(amount, fromAccount.id, toAccount.id);
 
     // Verify via API: the destination balance must have increased.
     await expect
