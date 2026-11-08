@@ -115,7 +115,7 @@ src/
   schemas/                     JSON Schemas derived from ParaBank's OpenAPI spec
   pages/parabank/              page objects (one per screen)
   fixtures/parabank/           Playwright fixtures (region, api client, pages,
-                               seeded data + loggedIn / loggedInTransferPage)
+                               seeded data, per-worker accounts, loggedIn)
 tests/parabank/
   api/                         API specs (customers, accounts, known defects)
   web/                         Web specs (login, transfer, register)
@@ -151,18 +151,22 @@ flowchart TD
 
 Coverage mapped to the tests that provide it:
 
-| Requirement                     | API                                             | Web                                                                 |
-| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------- |
-| Happy path                      | `customers.api.spec.ts`, `accounts.api.spec.ts` | `login.web.spec.ts`, `transfer.web.spec.ts`, `register.web.spec.ts` |
-| Error state                     | bad login `400`, unknown id `400`               | invalid-password login (pinned as known defect AUTH-1)              |
-| Idempotency / edge case         | repeated login returns the same id              | logout/login session round-trip                                     |
-| Web test using an API operation | -                                               | `transfer.web.spec.ts` (API setup + API verification)               |
-| Schema validation               | customer / account / transaction via `ajv`      | -                                                                   |
+| Requirement                     | API                                                             | Web                                                                 |
+| ------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Happy path                      | `customers.api.spec.ts`, `accounts.api.spec.ts`                 | `login.web.spec.ts`, `transfer.web.spec.ts`, `register.web.spec.ts` |
+| Error state                     | bad login `400`, unknown id `400`                               | invalid-password login (pinned as known defect AUTH-1)              |
+| Idempotency / edge case         | repeated login returns the same id                              | logout/login session round-trip                                     |
+| Web test using an API operation | -                                                               | `transfer.web.spec.ts` (API setup + API verification)               |
+| Schema validation               | every DTO-returning API call (customer / account / transaction) | -                                                                   |
 
 ### Schema validation & contract testing
 
 The JSON Schemas in `src/schemas/` are derived from ParaBank's OpenAPI spec and
-checked with `ajv`. Where the spec and the real API disagree (for example
+checked with `ajv` inside `BaseApiClient`: every method that returns a DTO passes
+its schema, so each response is validated before a test sees it. A missing or
+renamed field fails the call with the offending instance path, instead of
+surfacing later as `undefined` inside an assertion. Where the spec and the real
+API disagree (for example
 `Transaction.date` is documented as a date-time string but actually comes back
 as epoch milliseconds), that drift is recorded in `docs/parabank/bugs.md` and
 pinned by a `@known-defect` test.

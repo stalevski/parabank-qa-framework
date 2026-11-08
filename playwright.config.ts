@@ -46,8 +46,13 @@ export default defineConfig({
     {
       name: 'parabank-api',
       testMatch: /tests\/parabank\/api\/.*\.spec\.ts/,
+      // A single HTTP call taking this long is a bug or an outage, not a slow UI.
+      timeout: 15_000,
       use: {
         baseURL: activeRegion.apiBaseUrl,
+        // Traces still record every request/response (the API equivalent of a
+        // HAR); DOM and aria snapshots only exist for browser tests.
+        trace: { mode: 'retain-on-failure', snapshots: { dom: false, aria: false } },
       },
     },
     {

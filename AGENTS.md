@@ -33,7 +33,8 @@ src/models/api/parabank/       DTOs
 src/builders/                  fluent test-data builders
 src/schemas/                   JSON Schemas (from ParaBank's OpenAPI spec)
 src/pages/parabank/            page objects
-src/fixtures/parabank/         Playwright fixtures
+src/fixtures/parabank/         Playwright fixtures (workerAccounts = isolated
+                               per-worker accounts for mutating tests)
 tests/parabank/{api,web}/      specs; regions.spec.ts = config parity
 ```
 
@@ -68,6 +69,8 @@ browsers once with `npx playwright install`.
   `goto()` / `assertLoaded()` + intention-revealing actions.
 - **API**: typed client extends `BaseApiClient`; DTOs for transport; builders
   for data; AAA in specs. `*Raw` methods return `APIResponse` for error states.
+  JSON-returning methods pass the DTO's schema, so `BaseApiClient` validates
+  every payload before the test sees it.
 - **Regions**: never branch test logic on region. Read configuration through
   the `region` fixture.
 - **Known-defect tests**: tagged `@known-defect`, assert current buggy
@@ -90,6 +93,12 @@ browsers once with `npx playwright install`.
   differ; page objects navigate the UI base, API calls need the API base.
 - **Money is always sent with two decimals via `formatAmount`** because ParaBank
   echoes the decimal scale it receives.
+- **Contract validation happens in `BaseApiClient`, not in a dedicated spec** -
+  every JSON method passes its DTO's schema, so all DTO-returning calls are
+  checked instead of one representative payload.
+- **Mutating tests use `workerAccounts`, not the seeded accounts** - two
+  per-worker accounts created and funded through the API, so parallel workers
+  never race on the same balance.
 - **Known defects are pinned by tests, not skipped** - a vendor fix flips the
   pinned test instead of silently passing.
 

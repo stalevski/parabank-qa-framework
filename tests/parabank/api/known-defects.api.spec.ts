@@ -15,10 +15,12 @@ test.describe('ParaBank API - Known defects', () => {
 
   test('@known-defect FUNDS: withdraw does not reject insufficient funds (allows overdraft)', async ({
     apiClient,
-    seededAccounts,
+    workerAccounts,
   }) => {
-    const account = [...seededAccounts].sort((a, b) => a.balance - b.balance)[0];
-    const overBalanceAmount = Math.max(1, account.balance + 1);
+    // Fresh balance: the fixture's deposit happened before any other test ran,
+    // and this account is owned by this worker only.
+    const account = await apiClient.getAccount(workerAccounts[0].id);
+    const overBalanceAmount = Math.max(1, Number((account.balance + 1).toFixed(2)));
 
     const response = await apiClient.withdrawRaw(account.id, overBalanceAmount);
 

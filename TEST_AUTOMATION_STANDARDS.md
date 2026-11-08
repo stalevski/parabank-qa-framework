@@ -52,6 +52,8 @@ back to name-based locators. Never repeat a raw selector across specs.
 - DTOs model transport; builders create data
 - happy-path methods fail the test on non-2xx; `*Raw` variants return
   `APIResponse` for error-state assertions
+- every JSON-returning method passes the schema for its DTO, and
+  `BaseApiClient` validates the payload before the test sees it
 - JSON is requested with an `Accept: application/json` header on every request
   (ParaBank returns XML by default)
 
@@ -60,8 +62,8 @@ back to name-based locators. Never repeat a raw selector across specs.
 - short tests with a clear arrange → act → assert shape
 - assert business outcomes, not internals
 - cover error states and idempotency/edge cases alongside happy paths
-- schema validation via `validateAgainstSchema` plus JSON Schemas in
-  `src/schemas`
+- schema validation lives in the client (`BaseApiClient`), driven by the JSON
+  Schemas in `src/schemas`; there is no separate schema-only test
 - known-defect tests tagged `@known-defect`, cross-referencing
   `docs/parabank/bugs.md`
 - prefer `expect.poll` and `waitForURL` for eventual consistency; avoid
@@ -72,6 +74,8 @@ back to name-based locators. Never repeat a raw selector across specs.
 - build through fluent builders (`CustomerBuilder`, `RandomDataGenerator`)
 - unique per run (random suffixes); never depend on seeded balances
 - the shared demo DB is volatile, so treat seeded data as read-only reference
+- mutating tests use the worker-scoped `workerAccounts` fixture, never the
+  shared seeded accounts
 
 ## Refactor vs patch
 

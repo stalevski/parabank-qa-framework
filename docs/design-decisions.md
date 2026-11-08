@@ -53,10 +53,47 @@ identically in both the API and Web projects.
 ## Seeded data
 
 Most tests read the demo's pre-seeded customer (`john`/`demo`, customer `12212`)
-through the `seededCustomer` and `seededAccounts` fixtures. The web registration
-test is the exception: it creates its own customer through the `register.htm`
-web form. Unique values (transfer amounts, usernames) come from
-`RandomDataGenerator`.
+through the `seededCustomer` and `seededAccounts` fixtures. Mutating tests use
+`workerAccounts` instead (see below), and the web registration test creates its
+own customer through the `register.htm` web form. Unique values (transfer
+amounts, usernames) come from `RandomDataGenerator`.
+
+## Contract validation lives in the client
+
+`BaseApiClient.getJson`/`postJson` take the JSON Schema for the DTO they return
+and validate the payload before handing it to the test. A dedicated "schema
+validation" test would prove that one payload matched once on one code path;
+validating at the call site covers every DTO-returning call the suite makes, and
+reports the instance path at the moment drift appears. `*Raw` methods stay
+unvalidated on purpose - error-state tests assert on status codes and bodies
+that are deliberately not DTO-shaped.
+
+The schemas themselves stay in `src/schemas/`, one file per transport shape.
+Two are derived rather than duplicated: the account list is
+`{ type: 'array', items: accountSchema }`, and a single transaction is
+`transactionsSchema.items`.
+
+## Per-worker accounts instead of shared seeded accounts
+
+Mutating tests (transfer, deposit, withdraw, and the UI transfer verified by
+balance) would otherwise race: every worker moves money on the same seeded
+accounts, so a balance snapshot taken in one test can be invalidated by another
+test in a different worker. The `workerAccounts` fixture creates two accounts
+owned by that worker (SAVINGS source, CHECKING destination, plus a known
+deposit) once per worker, so mutating tests only touch data no other worker can
+see.
+
+Three details are deliberate:
+
+- **A fresh account starts at 0**, not at a minimum balance, so the fixture
+  deposits a fixed amount and transfer/overdraft assertions have a known
+  starting point.
+- **The funding account is the seeded account with the highest balance.** Other
+  users' overdrafts leave some demo accounts deeply negative, and creating an
+  account from a negative source is unreliable.
+- **Account creation is retried (3 attempts, 500 ms backoff).** Parallel workers
+  create accounts for the same demo customer at the same instant, and ParaBank
+  intermittently rejects the burst. Only setup is retried; assertions never are.
 
 ## Interfaces vs classes
 

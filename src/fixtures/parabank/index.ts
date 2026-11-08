@@ -27,7 +27,51 @@ interface ParabankFixtures {
   loggedInTransferPage: TransferFundsPage;
 }
 
-export const test = base.extend<ParabankFixtures>({
+/**
+ * Fixtures scoped to a worker rather than a test, so their setup cost (creating
+ * and funding accounts through the API) is paid once per worker.
+ */
+export interface ParabankWorkerFixtures {
+  /**
+   * Two accounts belonging to the seeded customer that this worker owns
+   * exclusively: SAVINGS as the source, CHECKING as the destination, with a
+   * known deposit on the source. Mutating tests use these instead of the shared
+   * seeded accounts, so parallel workers never race on the same balance or
+   * transaction history.
+   */
+  workerAccounts: AccountDto[];
+}
+
+// A freshly created account starts at 0, so the source needs a deposit before
+// transfers and overdraft checks have a balance to work with.
+const WORKER_FUNDING_DEPOSIT = 100;
+
+// Parallel workers create accounts for the same shared demo customer at the
+// same moment, and ParaBank intermittently rejects a burst of concurrent
+// creations ("Could not create new account ..."). Setup is retried; assertions
+// never are, because the demo - not the code under test - is the unstable part.
+const CREATE_ACCOUNT_ATTEMPTS = 3;
+const CREATE_ACCOUNT_BACKOFF_MS = 500;
+
+async function createAccountWithRetry(
+  client: ParabankApiClient,
+  customerId: number,
+  accountType: number,
+  fromAccountId: number,
+): Promise<AccountDto> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await client.createAccount(customerId, accountType, fromAccountId);
+    } catch (error) {
+      if (attempt >= CREATE_ACCOUNT_ATTEMPTS) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * CREATE_ACCOUNT_BACKOFF_MS));
+    }
+  }
+}
+
+export const test = base.extend<ParabankFixtures, ParabankWorkerFixtures>({
   region: async ({}, use) => {
     await use(activeRegion);
   },
@@ -45,6 +89,34 @@ export const test = base.extend<ParabankFixtures>({
   seededAccounts: async ({ apiClient, seededCustomer }, use) => {
     await use(await apiClient.getAccounts(seededCustomer.id));
   },
+  workerAccounts: [
+    async ({ playwright }, use) => {
+      const request = await playwright.request.newContext({ baseURL: activeRegion.apiBaseUrl });
+      try {
+        const client = new ParabankApiClient(request);
+        const customer = await client.login(
+          activeRegion.credentials.seededUsername,
+          activeRegion.credentials.seededPassword,
+        );
+        const accounts = await client.getAccounts(customer.id);
+        // Fund from the account with the most headroom: the demo database is
+        // shared, and some seeded accounts sit deeply negative after other
+        // users' overdrafts.
+        const fundingAccount = [...accounts].sort((a, b) => b.balance - a.balance)[0];
+
+        // 1 = SAVINGS (source), 0 = CHECKING (destination) - see app.md for the
+        // integer ordinals the REST endpoint accepts.
+        const source = await createAccountWithRetry(client, customer.id, 1, fundingAccount.id);
+        const destination = await createAccountWithRetry(client, customer.id, 0, fundingAccount.id);
+        await client.deposit(source.id, WORKER_FUNDING_DEPOSIT);
+
+        await use([source, destination]);
+      } finally {
+        await request.dispose();
+      }
+    },
+    { scope: 'worker' },
+  ],
   homePage: async ({ page }, use) => {
     await use(new HomePage(page));
   },

@@ -10,11 +10,12 @@ their own data and never assert on a specific seeded balance.
 
 ## API quirks (verified against the live demo)
 
-| ID         | Area               | Behaviour                                                                                                                                                                   | Test                                          |
-| ---------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| CONTRACT-1 | `Transaction.date` | The published OpenAPI schema declares `date` as `string (date-time)`, but the API returns **epoch milliseconds as a number** (e.g. `1788307200000`).                        | `known-defects.api.spec.ts` (`@known-defect`) |
-| FUNDS-1    | `POST /withdraw`   | Withdrawing more than the account balance **succeeds with HTTP 200** ("Successfully withdrew…") and drives the balance negative. There is no insufficient-funds validation. | `known-defects.api.spec.ts` (`@known-defect`) |
-| FUNDS-2    | `POST /transfer`   | Likewise, transfers are not balance-checked; a source account can be overdrawn.                                                                                             | observed, not asserted                        |
+| ID         | Area                  | Behaviour                                                                                                                                                                                                                                 | Test                                          |
+| ---------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| CONTRACT-1 | `Transaction.date`    | The published OpenAPI schema declares `date` as `string (date-time)`, but the API returns **epoch milliseconds as a number** (e.g. `1788307200000`).                                                                                      | `known-defects.api.spec.ts` (`@known-defect`) |
+| FUNDS-1    | `POST /withdraw`      | Withdrawing more than the account balance **succeeds with HTTP 200** ("Successfully withdrew…") and drives the balance negative. There is no insufficient-funds validation.                                                               | `known-defects.api.spec.ts` (`@known-defect`) |
+| FUNDS-2    | `POST /transfer`      | Likewise, transfers are not balance-checked; a source account can be overdrawn.                                                                                                                                                           | observed, not asserted                        |
+| ACCOUNT-1  | `POST /createAccount` | Creating several accounts for the same customer **at the same moment** intermittently fails with HTTP `400` ("Could not create new account for customer … from account …"), while the identical call succeeds when repeated sequentially. | observed; setup retries (`workerAccounts`)    |
 
 ## Response-format quirks
 
@@ -50,4 +51,5 @@ their own data and never assert on a specific seeded balance.
   dynamically-built sentence - never a hardcoded literal (the numbers vary per
   run).
 - The seeded `john` / `demo` account is shared and often has negative balances;
-  treat all balances as volatile.
+  treat all balances as volatile. Mutating tests therefore run against
+  per-worker accounts (`workerAccounts`), and never against the seeded ones.

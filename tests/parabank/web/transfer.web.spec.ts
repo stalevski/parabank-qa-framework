@@ -20,13 +20,12 @@ test.describe('ParaBank Web - Transfer', () => {
 
   test('uses the API for setup and verification around a UI transfer', async ({
     apiClient,
-    seededAccounts,
+    workerAccounts,
     loggedInTransferPage,
   }) => {
-    // Setup via API: identify two accounts and snapshot the destination balance.
-    expect(seededAccounts.length).toBeGreaterThanOrEqual(2);
-    const fromAccount = seededAccounts[0];
-    const toAccount = seededAccounts[seededAccounts.length - 1];
+    // Setup via API: the worker's own accounts, so no other worker can move the
+    // destination balance while this test is polling it.
+    const [fromAccount, toAccount] = workerAccounts;
     const balanceBefore = (await apiClient.getAccount(toAccount.id)).balance;
     const amount = RandomDataGenerator.transferAmount();
 

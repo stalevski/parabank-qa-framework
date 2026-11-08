@@ -71,15 +71,17 @@ cover.)
 - **Registration** only exists through the web UI; the REST API has no
   `/register` endpoint (404).
 - **Shared state:** the demo database is mutated by everyone and reset
-  periodically, so any specific balance is volatile.
+  periodically, so any specific balance is volatile. The framework therefore
+  gives each worker its own accounts (`workerAccounts`) and treats the seeded
+  accounts as read-only reference data.
 
 ## How the framework maps to this domain
 
 | Domain area   | Framework coverage                                                                                   |
 | ------------- | ---------------------------------------------------------------------------------------------------- |
-| Customers     | login (happy + bad password 400), get customer (happy + unknown 400), idempotent login, schema       |
-| Accounts      | list, get (happy + unknown 400), create (happy), schema                                              |
-| Transactions  | history, single by id, schema                                                                        |
+| Customers     | login (happy + bad password 400), get customer (happy + unknown 400), idempotent login               |
+| Accounts      | list, get (happy + unknown 400), create (happy)                                                      |
+| Transactions  | history, single by id                                                                                |
 | Fund movement | transfer (happy + zero-amount edge), deposit (happy), withdraw (overdraft `@known-defect`)           |
 | Web UI        | login, logout round-trip, invalid-password login error, transfer with API verification, registration |
-| Contract      | `ajv` validation against OpenAPI-derived JSON Schemas                                                |
+| Contract      | `ajv` validation of every DTO-returning client call against OpenAPI-derived JSON Schemas             |

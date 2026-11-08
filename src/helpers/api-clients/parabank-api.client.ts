@@ -4,13 +4,23 @@ import { formatAmount } from '@helpers/money';
 import type { AccountDto } from '@models/api/parabank/account.dto';
 import type { CustomerDto } from '@models/api/parabank/customer.dto';
 import type { TransactionDto } from '@models/api/parabank/transaction.dto';
+import accountSchema from '@schemas/account.schema.json';
+import customerSchema from '@schemas/customer.schema.json';
+import transactionsSchema from '@schemas/transactions.schema.json';
+
+// `GET /customers/{id}/accounts` returns the Account shape as an array, and a
+// single transaction is the item shape of the transactions schema, so both are
+// derived from the schemas above instead of being duplicated as extra files.
+const accountsSchema = { type: 'array', items: accountSchema };
+const transactionSchema = transactionsSchema.items;
 
 /**
  * Typed client for ParaBank's REST API (`/services/bank`).
  *
  * Methods ending in `Raw` return the raw `APIResponse` (no auto-throw) so
- * error-state tests can assert on status codes. The happy-path methods throw
- * on non-2xx via the shared `BaseApiClient`.
+ * error-state tests can assert on status codes. The happy-path methods throw on
+ * non-2xx via the shared `BaseApiClient`, which also validates every JSON
+ * payload against the schema passed alongside it.
  */
 export class ParabankApiClient extends BaseApiClient {
   constructor(request: APIRequestContext) {
@@ -20,7 +30,10 @@ export class ParabankApiClient extends BaseApiClient {
   // ---- Customers ------------------------------------------------------
 
   async login(username: string, password: string): Promise<CustomerDto> {
-    return this.getJson<CustomerDto>(`login/${encodeURIComponent(username)}/${encodeURIComponent(password)}`);
+    return this.getJson<CustomerDto>(
+      `login/${encodeURIComponent(username)}/${encodeURIComponent(password)}`,
+      customerSchema,
+    );
   }
 
   async loginRaw(username: string, password: string): Promise<APIResponse> {
@@ -28,7 +41,7 @@ export class ParabankApiClient extends BaseApiClient {
   }
 
   async getCustomer(customerId: number): Promise<CustomerDto> {
-    return this.getJson<CustomerDto>(`customers/${customerId}`);
+    return this.getJson<CustomerDto>(`customers/${customerId}`, customerSchema);
   }
 
   async getCustomerRaw(customerId: number): Promise<APIResponse> {
@@ -36,13 +49,13 @@ export class ParabankApiClient extends BaseApiClient {
   }
 
   async getAccounts(customerId: number): Promise<AccountDto[]> {
-    return this.getJson<AccountDto[]>(`customers/${customerId}/accounts`);
+    return this.getJson<AccountDto[]>(`customers/${customerId}/accounts`, accountsSchema);
   }
 
   // ---- Accounts -------------------------------------------------------
 
   async getAccount(accountId: number): Promise<AccountDto> {
-    return this.getJson<AccountDto>(`accounts/${accountId}`);
+    return this.getJson<AccountDto>(`accounts/${accountId}`, accountSchema);
   }
 
   async getAccountRaw(accountId: number): Promise<APIResponse> {
@@ -50,17 +63,19 @@ export class ParabankApiClient extends BaseApiClient {
   }
 
   async getTransactions(accountId: number): Promise<TransactionDto[]> {
-    return this.getJson<TransactionDto[]>(`accounts/${accountId}/transactions`);
+    return this.getJson<TransactionDto[]>(`accounts/${accountId}/transactions`, transactionsSchema);
   }
 
   async getTransaction(transactionId: number): Promise<TransactionDto> {
-    return this.getJson<TransactionDto>(`transactions/${transactionId}`);
+    return this.getJson<TransactionDto>(`transactions/${transactionId}`, transactionSchema);
   }
 
   // `newAccountType` is the integer ordinal from the OpenAPI schema
   // (0 = CHECKING, 1 = SAVINGS, 2 = LOAN).
   async createAccount(customerId: number, newAccountType: number, fromAccountId: number): Promise<AccountDto> {
-    return this.postJson<AccountDto>('createAccount', { params: { customerId, newAccountType, fromAccountId } });
+    return this.postJson<AccountDto>('createAccount', accountSchema, {
+      params: { customerId, newAccountType, fromAccountId },
+    });
   }
 
   // ---- Fund movement (returns plain-text confirmation) ----------------
