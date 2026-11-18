@@ -134,3 +134,23 @@ own spec and CI job so they don't clutter the happy-path signal.
 ParaBank is a shared public demo. CI marks its jobs `continue-on-error`, tests
 derive their own data, and whatever flakiness remains is written down in
 `docs/parabank/bugs.md`.
+
+## Dependency advisories
+
+`npm audit fix` runs occasionally to keep the dev toolchain off known advisories
+(2026-11-18: `brace-expansion`, `fast-uri`, `minimatch` and the
+`@typescript-eslint/*` chain all cleared, leaving a single open advisory).
+
+One advisory is accepted until upstream publishes a patch:
+
+- **`picomatch` ReDoS - GHSA-fc5q-39xc-vjpf (CVE-2026-112366).** Affects every
+  published version (`<= 4.0.7`) and has **no patched version**. It arrives
+  transitively through `tinyglobby`/`fdir`, which `typescript-eslint` pulls in
+  for lint tooling only - nothing here is reachable at runtime, and this repo
+  ships no server. `npm audit` counts it once per dependent package, so the
+  headline "9 high" is one advisory, not nine.
+
+**Never run `npm audit fix --force` here.** Its only resolution for picomatch is
+to _downgrade_ `typescript-eslint` (8.73 -> 8.47), which would regress the
+toolchain without removing the advisory. Re-check upstream for a picomatch
+release above 4.0.7; drop this note when one exists.
