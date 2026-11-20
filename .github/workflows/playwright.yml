@@ -109,8 +109,35 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        # Bounded on purpose: a stalled browser mirror hung this step for the full
+        # 30-minute job budget on 2026-11-18 (eu runner), and the job timeout
+        # cancelled the entire run with the tests never executed. Failing here
+        # instead turns a lost half-hour into a fast, re-runnable failure.
+        timeout-minutes: 10
         run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system deps only (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        # On a cache hit the browsers are present; this is bare apt-get, which is
+        # the part that stalls on a degraded mirror. Bounded and non-fatal: if a
+        # library really is missing, the test step names the packages itself.
+        timeout-minutes: 10
+        continue-on-error: true
+        run: npx playwright install-deps chromium firefox webkit
+
       - name: Run Web tests
         run: npm run test:web -- --grep-invert @known-defect
         env:
