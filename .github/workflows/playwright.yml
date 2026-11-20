@@ -6,6 +6,12 @@ on:
       - main
       - master
   pull_request:
+  # Weekly multi-region sweep. PRs and pushes run a single region (see the
+  # matrix expressions below): three regions in parallel against one public
+  # demo tripped Cloudflare's rate limiter (HTTP 429, error 1015) and turned
+  # every run red without testing anything extra.
+  schedule:
+    - cron: '0 5 * * 1'
   workflow_dispatch:
     inputs:
       layer:
@@ -56,14 +62,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 20
-    # ParaBank is a shared public demo we do not control; its flakiness must
-    # not block PRs or main. Reports are still uploaded for investigation.
+    # One region on push/PR; the full sweep runs weekly and on manual dispatch.
+    # `continue-on-error` keeps a public-demo hiccup off the merge path either way.
     continue-on-error: true
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api' }}
     strategy:
       fail-fast: false
       matrix:
-        region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
+        region: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region))) || (github.event_name == 'schedule' && fromJSON('["us","eu","apac"]')) || fromJSON('["us"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -94,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        region: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region)) || fromJSON('["us","eu","apac"]') }}
+        region: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.region))) || (github.event_name == 'schedule' && fromJSON('["us","eu","apac"]')) || fromJSON('["us"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
