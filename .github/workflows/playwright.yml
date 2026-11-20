@@ -113,9 +113,9 @@ jobs:
         id: playwright-version
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Playwright browsers
+      - name: Restore Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
@@ -128,6 +128,18 @@ jobs:
         # instead turns a lost half-hour into a fast, re-runnable failure.
         timeout-minutes: 10
         run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Save Playwright browsers
+        # actions/cache's own post-step only saves on a SUCCESSFUL job, and this
+        # suite is red whenever the public demo is unwell - so the cache would
+        # never fill. Save explicitly, even when the tests fail.
+        if: always() && steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
       - name: Install Playwright system deps only (cache hit)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
