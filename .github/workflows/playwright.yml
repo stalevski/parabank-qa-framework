@@ -186,7 +186,11 @@ jobs:
         run: npx playwright install-deps chromium firefox webkit
 
       - name: Run Web tests
-        run: npm run test:web -- --grep-invert @known-defect
+        # A shared public demo rate-limits bursts: Cloudflare answered 1015/429
+        # when two workers across three engines ran fully parallel (2026-11-20),
+        # and the login page itself stopped rendering. Serialise in CI - same
+        # coverage, one request stream - rather than shrinking the matrix.
+        run: npm run test:web -- --grep-invert @known-defect --workers=1
         env:
           REGION: ${{ matrix.region }}
       - name: Upload HTML report
@@ -216,13 +220,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run API known-defect pins
-        run: npx playwright test --project=parabank-api --grep @known-defect
+        run: npx playwright test --project=parabank-api --grep @known-defect --workers=1
         env:
           REGION: us
       - name: Install Chromium for the web pins
         run: npx playwright install --with-deps chromium
       - name: Run Web known-defect pins
-        run: npx playwright test --project=parabank-web-chromium --grep @known-defect
+        run: npx playwright test --project=parabank-web-chromium --grep @known-defect --workers=1
         env:
           REGION: us
       - name: Upload HTML report
@@ -254,7 +258,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run smoke tests in random order
-        run: npm run test:shuffle -- --project=parabank-web-chromium --grep @smoke
+        run: npm run test:shuffle -- --project=parabank-web-chromium --grep @smoke --workers=1
         env:
           REGION: us
 
