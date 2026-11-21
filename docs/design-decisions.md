@@ -131,9 +131,13 @@ own spec and CI job so they don't clutter the happy-path signal.
 
 ## Flakiness policy
 
-ParaBank is a shared public demo. CI marks its jobs `continue-on-error`, tests
-derive their own data, and whatever flakiness remains is written down in
-`docs/parabank/bugs.md`.
+ParaBank is a shared public demo. Tests derive their own data, and whatever
+flakiness remains is written down in `docs/parabank/bugs.md`. The Web, known-defect
+and shuffle jobs carry `continue-on-error` so a Cloudflare 429 cannot hide the
+API signal, but they are **not** silently green: each records its real step
+outcome and the `Run verdict` job fails the run when one of them failed. The API
+job carries no `continue-on-error` - it is the gating demo suite. See
+`docs/verification.md` for the verdict contract.
 
 ## Dependency advisories
 

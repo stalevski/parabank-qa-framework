@@ -40,8 +40,8 @@ test.describe('Region configuration', () => {
       const region = regions[key];
       expect(region.uiBaseUrl).toMatch(/^https?:\/\//);
       expect(region.apiBaseUrl).toMatch(/^https?:\/\//);
-      expect(region.credentials.seededUsername).toBeTruthy();
-      expect(region.credentials.seededPassword).toBeTruthy();
+      expect(region.credentials.seededUsername).toMatch(/\S/);
+      expect(region.credentials.seededPassword).toMatch(/\S/);
     }
   });
 

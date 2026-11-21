@@ -44,7 +44,7 @@ test.describe('ParaBank API - Accounts', () => {
 
   test('returns the transaction history for an account', async ({ apiClient, seededAccounts }) => {
     const transactions = await apiClient.getTransactions(seededAccounts[0].id);
-    expect(Array.isArray(transactions)).toBeTruthy();
+    expect(transactions).toEqual(expect.any(Array));
   });
 
   test('transfers funds between two accounts', async ({ apiClient, workerAccounts }) => {
