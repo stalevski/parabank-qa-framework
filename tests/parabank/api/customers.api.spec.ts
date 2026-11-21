@@ -3,8 +3,8 @@ import { test, expect } from '@parabank-fixtures';
 test.describe('ParaBank API - Customers', () => {
   test('logs in with seeded credentials and returns a customer', { tag: '@smoke' }, async ({ seededCustomer }) => {
     expect(seededCustomer.id).toBeGreaterThan(0);
-    expect(seededCustomer.firstName).toBeTruthy();
-    expect(seededCustomer.lastName).toBeTruthy();
+    expect(seededCustomer.firstName).toMatch(/\S/);
+    expect(seededCustomer.lastName).toMatch(/\S/);
   });
 
   test('login is idempotent: repeated calls return the same customer id', async ({ apiClient, region }) => {
@@ -22,8 +22,9 @@ test.describe('ParaBank API - Customers', () => {
     const customer = await apiClient.getCustomer(seededCustomer.id);
 
     expect(customer.id).toBe(seededCustomer.id);
-    expect(customer.address).toBeTruthy();
-    expect(customer.address.street).toBeTruthy();
+    expect(customer.address.street).toMatch(/\S/);
+    expect(customer.address.city).toMatch(/\S/);
+    expect(customer.address.zipCode).toMatch(/\S/);
   });
 
   test('returns HTTP 400 for an unknown customer id', async ({ apiClient }) => {

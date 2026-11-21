@@ -44,11 +44,18 @@ permissions:
 
 jobs:
   lint:
+    # Name kept stable on purpose: branch protection may require this exact
+    # check, and renaming it would leave PRs waiting on a check that no longer
+    # exists. It runs the same gate as `npm run verify` locally.
     name: Lint and format
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `npm run check:assertions` diffs against origin/main; a depth-1
+          # clone has no merge base, which would silently disable the gate.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -56,6 +63,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run check:assertions
 
   # ParaBank is a third-party demo the repo cannot fix. On 2026-11-20 it returned
   # 500 on /services/bank/**, and Cloudflare rate-limited repeated calls with 429.
@@ -68,38 +77,54 @@ jobs:
     timeout-minutes: 5
     outputs:
       healthy: ${{ steps.probe.outputs.healthy }}
+      ui: ${{ steps.probe.outputs.ui }}
+      api: ${{ steps.probe.outputs.api }}
+      login: ${{ steps.probe.outputs.login }}
     steps:
       - id: probe
-        name: Probe ParaBank UI and API
+        name: Probe ParaBank UI, API and seeded login
         run: |
           set -eu
           ui=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/index.htm || echo 000)
           api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/services/bank/customers/12212/accounts || echo 000)
-          echo "UI=$ui API=$api"
+          # Every suite starts with this login. On 2026-11-21 the two endpoints
+          # above still answered 200 while ParaBank rejected the seeded
+          # john/demo credentials with HTTP 400, so a 200-only probe declared the
+          # vendor healthy and turned the API suite red for a vendor-side data
+          # reset. Probe the precondition the tests actually need.
+          login=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/services/bank/login/john/demo || echo 000)
+          echo "UI=$ui API=$api LOGIN=$login"
+          echo "ui=$ui" >> "$GITHUB_OUTPUT"
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "login=$login" >> "$GITHUB_OUTPUT"
           echo "| endpoint | status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| /parabank/index.htm | $ui |" >> "$GITHUB_STEP_SUMMARY"
           echo "| /services/bank/customers/12212/accounts | $api |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| /services/bank/login/john/demo (seeded login) | $login |" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$ui" != "200" ] || [ "$api" != "200" ]; then
+          if [ "$ui" != "200" ] || [ "$api" != "200" ] || [ "$login" != "200" ]; then
             echo "healthy=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=ParaBank upstream unhealthy::UI=$ui API=$api. The demo suites are skipped because the vendor is down (5xx/429/timeout); this is not a repository defect."
+            echo "::warning title=ParaBank upstream unhealthy::UI=$ui API=$api LOGIN=$login. The demo suites are skipped because the vendor is down or its seeded data is gone (5xx/429/timeout/400 on login); this is not a repository defect."
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Suites skipped: ParaBank is unhealthy (UI=$ui, API=$api).** This is a vendor outage, not a test failure." >> "$GITHUB_STEP_SUMMARY"
+            echo "**Suites skipped: ParaBank is unhealthy (UI=$ui, API=$api, LOGIN=$login).** This is a vendor outage, not a test failure." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "healthy=true" >> "$GITHUB_OUTPUT"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "**Upstream healthy — full suites will run.**" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+  # The API layer is the gating demo suite: it is one HTTP client with no
+  # browser and no Cloudflare challenge, and it passed in the very run where the
+  # Web suite failed (44798937153). A red API job is a real signal, so it fails
+  # the run instead of being tolerated.
   api:
     name: API tests (${{ matrix.region }})
     runs-on: ubuntu-latest
     needs: [lint, upstream]
     timeout-minutes: 20
-    # One region on push/PR; the full sweep runs weekly and on manual dispatch.
-    # `continue-on-error` keeps a public-demo hiccup off the merge path either way.
-    continue-on-error: true
+    outputs:
+      outcome: ${{ steps.record.outputs.outcome }}
     if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api') }}
     strategy:
       fail-fast: false
@@ -114,9 +139,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run API tests (excluding known-defect pins)
+        id: suite
         run: npx playwright test --project=parabank-api --grep-invert @known-defect
         env:
           REGION: ${{ matrix.region }}
+      - name: Record suite outcome
+        # Read by the `verdict` job. Safe to run after a failure: job outputs
+        # stay available either way, and this step never fails the job.
+        id: record
+        if: always()
+        run: echo "outcome=${{ steps.suite.outcome || 'not-run' }}" >> "$GITHUB_OUTPUT"
       - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v7
@@ -125,13 +157,19 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+  # Browser suite: non-blocking on purpose (see the `verdict` job). It stays
+  # `continue-on-error` because a Cloudflare 429 in Web must not hide the API
+  # signal, but its real state is recorded and reported - it is never silently
+  # green.
   web:
-    name: Web tests (${{ matrix.region }})
+    name: Web tests (${{ matrix.region }}) [non-blocking]
     runs-on: ubuntu-latest
     needs: [lint, upstream]
     timeout-minutes: 30
     continue-on-error: true
-    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'web') }}
+    outputs:
+      outcome: ${{ steps.record.outputs.outcome }}
+    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'web') }}
     strategy:
       fail-fast: false
       matrix:
@@ -186,6 +224,7 @@ jobs:
         run: npx playwright install-deps chromium firefox webkit
 
       - name: Run Web tests
+        id: suite
         # A shared public demo rate-limits bursts: Cloudflare answered 1015/429
         # when two workers across three engines ran fully parallel (2026-11-20),
         # and the login page itself stopped rendering. Serialise in CI - same
@@ -193,6 +232,13 @@ jobs:
         run: npm run test:web -- --grep-invert @known-defect --workers=1
         env:
           REGION: ${{ matrix.region }}
+      - name: Record suite outcome
+        # `continue-on-error` above makes needs.<job>.result say "success" even
+        # when this suite is red (run 44798937153). This output is the truth the
+        # `verdict` job reads.
+        id: record
+        if: always()
+        run: echo "outcome=${{ steps.suite.outcome || 'not-run' }}" >> "$GITHUB_OUTPUT"
       - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v7
@@ -205,12 +251,14 @@ jobs:
   # from the main suite so a vendor fix surfaces as a red pin rather than noise
   # inside the green happy-path signal.
   known-defects:
-    name: Known-defect pins (informational)
+    name: Known-defect pins [informational, non-blocking]
     runs-on: ubuntu-latest
     needs: [lint, upstream]
     timeout-minutes: 20
     continue-on-error: true
-    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api') }}
+    outputs:
+      outcome: ${{ steps.record.outputs.outcome }}
+    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'api') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -220,15 +268,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run API known-defect pins
+        id: api-pins
         run: npx playwright test --project=parabank-api --grep @known-defect --workers=1
         env:
           REGION: us
       - name: Install Chromium for the web pins
         run: npx playwright install --with-deps chromium
       - name: Run Web known-defect pins
+        id: web-pins
         run: npx playwright test --project=parabank-web-chromium --grep @known-defect --workers=1
         env:
           REGION: us
+      - name: Record suite outcome
+        # Two legs (API + Web pins) collapse into one outcome. Either leg red =
+        # red; a leg that never ran is a setup failure, not a pass.
+        id: record
+        if: always()
+        run: |
+          api='${{ steps.api-pins.outcome }}'
+          web='${{ steps.web-pins.outcome }}'
+          echo "api-pins=$api web-pins=$web"
+          if [ "$api" = "failure" ] || [ "$web" = "failure" ]; then
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+          elif [ "$api" = "success" ] && [ "$web" = "success" ]; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          elif [ "$api" = "success" ] || [ "$web" = "success" ]; then
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=not-run" >> "$GITHUB_OUTPUT"
+          fi
       - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v7
@@ -239,14 +307,17 @@ jobs:
 
   # Order-independence check: Playwright 1.64's --shuffle randomises the run
   # order, which surfaces tests that quietly depend on another test running
-  # first. Informational only - the demo is external, so it can't block merges.
+  # first. Non-blocking (see `verdict`): the demo is external, so a red shuffle
+  # is reported, not silently swallowed.
   shuffle:
-    name: Shuffled smoke run (informational)
+    name: Shuffled smoke run [informational, non-blocking]
     runs-on: ubuntu-latest
     needs: [lint, upstream]
     timeout-minutes: 20
     continue-on-error: true
-    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'web') }}
+    outputs:
+      outcome: ${{ steps.record.outputs.outcome }}
+    if: ${{ needs.upstream.outputs.healthy == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || inputs.layer == 'all' || inputs.layer == 'web') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -258,9 +329,65 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run smoke tests in random order
+        id: suite
         run: npm run test:shuffle -- --project=parabank-web-chromium --grep @smoke --workers=1
         env:
           REGION: us
+      - name: Record suite outcome
+        id: record
+        if: always()
+        run: echo "outcome=${{ steps.suite.outcome || 'not-run' }}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # The only job allowed to say what the run means.
+  #
+  # Before this job existed, `continue-on-error` on the demo suites made
+  # `needs.<job>.result` report `success` while they were red: run 44798937153
+  # failed "Run Web tests" and "Run Web known-defect pins" and still concluded
+  # `success`, so `gh run list` reported a green repo that was not green.
+  #
+  # The verdict reads the suites' *step* outcomes (which stay truthful) and:
+  #   - fails the run when a suite failed, or a selected suite never ran while
+  #     ParaBank was healthy (a silent skip is never a pass);
+  #   - does NOT fail when the upstream probe says the vendor is unhealthy -
+  #     there is nothing to judge - but says NOT VERIFIED instead of success.
+  # ---------------------------------------------------------------------------
+  verdict:
+    name: Run verdict
+    runs-on: ubuntu-latest
+    needs: [lint, upstream, api, web, known-defects, shuffle]
+    if: ${{ always() }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Write a machine-readable run verdict
+        id: verdict
+        env:
+          EVENT: ${{ github.event_name }}
+          LAYER: ${{ inputs.layer }}
+          HEALTHY: ${{ needs.upstream.outputs.healthy }}
+          UI_CODE: ${{ needs.upstream.outputs.ui }}
+          API_CODE: ${{ needs.upstream.outputs.api }}
+          LOGIN_CODE: ${{ needs.upstream.outputs.login }}
+          UPSTREAM_RESULT: ${{ needs.upstream.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          SUITE_API_RESULT: ${{ needs.api.result }}
+          SUITE_API_OUTCOME: ${{ needs.api.outputs.outcome }}
+          SUITE_WEB_RESULT: ${{ needs.web.result }}
+          SUITE_WEB_OUTCOME: ${{ needs.web.outputs.outcome }}
+          SUITE_KNOWN_DEFECTS_RESULT: ${{ needs.known-defects.result }}
+          SUITE_KNOWN_DEFECTS_OUTCOME: ${{ needs.known-defects.outputs.outcome }}
+          SUITE_SHUFFLE_RESULT: ${{ needs.shuffle.result }}
+          SUITE_SHUFFLE_OUTCOME: ${{ needs.shuffle.outputs.outcome }}
+          VERDICT_FILE: run-verdict.json
+        run: bash .github/scripts/run-verdict.sh
+      - name: Upload the verdict
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: run-verdict
+          path: run-verdict.json
+          retention-days: 30
 
   # Publishes every report artifact (API/Web per region) to GitHub Pages.
   # Requires GitHub Pages to be enabled once: Settings > Pages > Source = GitHub

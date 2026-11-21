@@ -38,17 +38,24 @@ npm run test:web                # Web only (Chromium + Firefox + WebKit)
 
 ## Running tests
 
-| Goal                        | Command                                 |
-| --------------------------- | --------------------------------------- |
-| All layers, all projects    | `npm test`                              |
-| API layer only              | `npm run test:api`                      |
-| Web layer only (3 browsers) | `npm run test:web`                      |
-| Region parity checks        | `npm run test:regions`                  |
-| Smoke tags only             | `npm run test:smoke`                    |
-| Random test order           | `npm run test:shuffle`                  |
-| Open the HTML report        | `npm run report`                        |
-| Lint / format               | `npm run lint` · `npm run format:check` |
-| Typecheck + tool sanity     | `npm run doctor`                        |
+| Goal                        | Command                                                         |
+| --------------------------- | --------------------------------------------------------------- |
+| All layers, all projects    | `npm test`                                                      |
+| API layer only              | `npm run test:api`                                              |
+| Web layer only (3 browsers) | `npm run test:web`                                              |
+| Region parity checks        | `npm run test:regions`                                          |
+| Smoke tags only             | `npm run test:smoke`                                            |
+| Random test order           | `npm run test:shuffle`                                          |
+| Open the HTML report        | `npm run report`                                                |
+| Lint / format               | `npm run lint` · `npm run format:check`                         |
+| Typecheck                   | `npm run typecheck` (`tsc --noEmit`)                            |
+| **Verify (offline gate)**   | `npm run verify` — lint, format, typecheck, assertion guardrail |
+| Verify + API suite          | `npm run verify:api` — the above, then `test:api`               |
+
+`npm run verify` never touches ParaBank, so it works on a plane, in a container,
+and while the demo is down. The browser suites need the live demo — see
+[docs/verification.md](docs/verification.md) for what each gate covers and how
+to read a CI run's verdict.
 
 ---
 
@@ -191,8 +198,33 @@ their own informational job so a vendor fix doesn't muddy the main signal, a
 third informational job re-runs the smoke tests in random order (`--shuffle`) to
 catch order dependence, and every HTML report is uploaded as an artifact.
 Reports are published to GitHub Pages from `main` only, so a pull request can
-never overwrite the published site. The public demo's flakiness is handled with
-`continue-on-error`, so external instability never blocks a merge.
+never overwrite the published site.
+
+The run conclusion is decided by one job, **Run verdict**, not by the
+`continue-on-error` flags. Before it existed, `continue-on-error` made
+`needs.<job>.result` report `success` for a failed suite: run 44798937153 failed
+its Web and known-defect steps and still concluded `success`, so `gh run list`
+showed a green repo that was not green.
+
+- The **API** job gates the run: `continue-on-error` was removed from it because
+  it passed in the run where Web failed, so a red API job is a real signal.
+- **Web**, **known-defect pins** and **shuffled smoke** stay non-blocking - a
+  Cloudflare 429 in a browser run must not hide the API signal - but they record
+  their real step outcome, and the verdict reads it.
+- The upstream probe checks three things, not one: the UI page, a
+  `/services/bank/**` read, and the seeded `john/demo` login every suite starts
+  with. On 2026-11-21 the first two answered 200 while login returned 400 (a
+  vendor-side data reset), which is how a 200-only probe turns a vendor outage
+  into a red API suite.
+- The verdict **fails the run** when any suite failed, or when a suite was
+  selected and never ran while ParaBank was healthy. It **does not fail** when
+  the upstream probe found the vendor unhealthy: it says `not-verified` instead,
+  because a vendor outage is not a repository defect - and a skipped suite is
+  not a pass either.
+
+The verdict is written to the job summary and to the `run-verdict` artifact as
+JSON. `docs/verification.md` explains how to tell a vendor failure (429 / 1015 /
+5xx from `parabank.parasoft.com` in the report) from a test defect.
 
 ---
 

@@ -9,7 +9,7 @@ test.describe('ParaBank API - Known defects', () => {
     const histories = await Promise.all(seededAccounts.map((account) => apiClient.getTransactions(account.id)));
     const sample = histories.find((history) => history.length > 0)?.[0];
 
-    expect(sample, 'expected at least one transaction in the seeded data').toBeTruthy();
+    expect(sample, 'expected at least one transaction in the seeded data').not.toBeUndefined();
     expect(typeof sample!.date).toBe('number');
   });
 

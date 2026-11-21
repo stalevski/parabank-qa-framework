@@ -20,7 +20,11 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "doctor": "node --version && npm --version && npx playwright --version && npx tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:assertions": "bash scripts/check-assertions.sh",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm run check:assertions",
+    "verify:api": "npm run lint && npm run format:check && npm run typecheck && npm run check:assertions && npm run test:api",
+    "doctor": "node --version && npm --version && npx playwright --version && tsc --noEmit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

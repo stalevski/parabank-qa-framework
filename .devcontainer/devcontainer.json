@@ -1,0 +1,17 @@
+{
+  "name": "parabank-qa-framework",
+  "//": "Same base image the tests target in CI (Playwright 1.65.1 / Ubuntu noble), so the browsers bundled here match the pinned @playwright/test version.",
+  "image": "mcr.microsoft.com/playwright:v1.65.1-noble",
+  "postCreateCommand": "npm ci && npx playwright install --with-deps",
+  "containerEnv": {
+    "CI": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-playwright.playwright", "dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  },
+  "remoteEnv": {
+    "REGION": "us"
+  }
+}

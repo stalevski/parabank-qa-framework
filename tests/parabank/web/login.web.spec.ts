@@ -11,6 +11,9 @@ test.describe('ParaBank Web - Login', () => {
       await homePage.assertLoaded();
       await homePage.login(region.credentials.seededUsername, region.credentials.seededPassword);
       await accountsOverviewPage.assertLoaded();
+      // The overview table is only rendered for a live session, so its presence
+      // is the assertion that the login actually took effect.
+      await expect(accountsOverviewPage.accountTable).toBeVisible();
     },
   );
 

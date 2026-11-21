@@ -53,3 +53,14 @@ their own data and never assert on a specific seeded balance.
 - The seeded `john` / `demo` account is shared and often has negative balances;
   treat all balances as volatile. Mutating tests therefore run against
   per-worker accounts (`workerAccounts`), and never against the seeded ones.
+
+## Vendor outages observed
+
+These are not defects in the app's logic and not defects in this repo; they are
+the demo being unavailable. CI's `upstream` probe detects them, skips the suites
+and the `Run verdict` job reports `not-verified` instead of a green run.
+
+| Date       | Symptom                                                                                                                                                                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-20 | `500` on `/services/bank/**`; Cloudflare rate-limited parallel runs with `429` / error `1015`.                                                                                                                                                                                                |
+| 2026-11-21 | `/parabank/index.htm` and `/services/bank/customers/12212/accounts` still answered `200` while `GET /services/bank/login/john/demo` returned `400` "Invalid username and/or password" - the seeded data had been reset. The probe now checks the login too, because every suite starts there. |
