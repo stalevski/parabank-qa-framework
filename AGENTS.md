@@ -125,3 +125,24 @@ browsers once with `npx playwright install`.
    [docs/design-decisions.md](docs/design-decisions.md), this file, and
    [TEST_AUTOMATION_STANDARDS.md](TEST_AUTOMATION_STANDARDS.md). A change that
    leaves the Markdown stale is incomplete.
+
+## Verify (required before claiming done)
+
+`npm run verify` = lint → format:check → typecheck → check:assertions. It never
+touches the network, so it is the gate for doc, config and refactor changes.
+
+`npm run verify:api` adds `test:api` and needs the live demo. Browser suites
+(`test:web`, `test:smoke`, `test:shuffle`) also need the live demo and are **not**
+part of verify — they run on the weekly schedule and on manual dispatch. Run them
+before claiming a UI change works.
+
+Read CI by the **`Run verdict` job**, not `gh run list`:
+
+- `pass` — every selected suite ran green
+- `not-verified` — the vendor was unhealthy (429/1015/5xx, or 400 on the seeded
+  login), so nothing was actually tested
+- `fail` — a suite failed, or silently skipped
+
+A report full of 429/1015 or a 400 on `login/john/demo` is the vendor; a locator
+timeout on a page that rendered is a test defect. Never fix either by skipping or
+deleting a test. Detail: `docs/verification.md`.
