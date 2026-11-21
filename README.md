@@ -12,6 +12,10 @@ is a config change rather than a code change.
 
 ---
 
+**Stack:** Playwright 1.65 · TypeScript · Node 24 · GitHub Actions
+
+**Verify:** `npm ci && npm run verify` (offline) · `npm run verify:api` (needs the live demo)
+
 ## Quickstart
 
 Needs Node 24 (see [`.nvmrc`](.nvmrc)).
