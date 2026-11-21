@@ -52,14 +52,26 @@ indirect() { # indirect <VAR_NAME>
 
 is_selected() { # <suite name> -> "1" when the job was supposed to run
   local name=$1
-  if [ "$EVENT" != "workflow_dispatch" ]; then
-    printf '1'
-    return
-  fi
-  case "$LAYER" in
-    api) case "$name" in api | known-defects) printf '1' ;; *) printf '0' ;; esac ;;
-    web) case "$name" in web | shuffle) printf '1' ;; *) printf '0' ;; esac ;;
-    *) printf '1' ;;
+  case "$EVENT" in
+    schedule)
+      # The weekly sweep runs everything the vendor allows.
+      printf '1'
+      return
+      ;;
+    workflow_dispatch)
+      case "$LAYER" in
+        api) case "$name" in api | known-defects) printf '1' ;; *) printf '0' ;; esac ;;
+        web) case "$name" in web | shuffle) printf '1' ;; *) printf '0' ;; esac ;;
+        *) printf '1' ;;
+      esac
+      ;;
+    *)
+      # push / pull_request: only the API suite is on the pull-request gate.
+      # web, known-defects and shuffle are vendor-dependent and run on the
+      # weekly schedule and on dispatch, so their absence here is expected -
+      # counting them as "skipped while healthy" made every push red.
+      case "$name" in api) printf '1' ;; *) printf '0' ;; esac
+      ;;
   esac
 }
 
