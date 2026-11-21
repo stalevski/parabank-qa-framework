@@ -107,8 +107,9 @@ Where to read it:
 
 | evidence in the run                                                              | conclusion                                                                             |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| upstream probe `UI`/`API` != 200, verdict `not-verified`                         | vendor down - nothing was tested, re-run later                                         |
+| upstream probe `UI`/`API`/`login` != 200, verdict `not-verified`                 | vendor down or its seeded data is gone - nothing was tested, re-run later              |
 | report shows HTTP 429 / 1015 / 5xx from `parabank.parasoft.com`                  | vendor rate-limiting the demo - re-run later; **not** a repo regression, but still red |
+| report shows HTTP 400 "Invalid username and/or password" on login                | the demo's seeded data was reset - vendor-side, not a code change                      |
 | report shows an assertion diff, 4xx, or a locator timeout on a page that renders | test defect - fix it                                                                   |
 | verdict `fail` with `... while ParaBank was healthy`                             | a suite silently did not run - fix the workflow, not the test                          |
 

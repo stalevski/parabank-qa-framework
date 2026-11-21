@@ -79,26 +79,35 @@ jobs:
       healthy: ${{ steps.probe.outputs.healthy }}
       ui: ${{ steps.probe.outputs.ui }}
       api: ${{ steps.probe.outputs.api }}
+      login: ${{ steps.probe.outputs.login }}
     steps:
       - id: probe
-        name: Probe ParaBank UI and API
+        name: Probe ParaBank UI, API and seeded login
         run: |
           set -eu
           ui=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/index.htm || echo 000)
           api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/services/bank/customers/12212/accounts || echo 000)
-          echo "UI=$ui API=$api"
+          # Every suite starts with this login. On 2026-11-21 the two endpoints
+          # above still answered 200 while ParaBank rejected the seeded
+          # john/demo credentials with HTTP 400, so a 200-only probe declared the
+          # vendor healthy and turned the API suite red for a vendor-side data
+          # reset. Probe the precondition the tests actually need.
+          login=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://parabank.parasoft.com/parabank/services/bank/login/john/demo || echo 000)
+          echo "UI=$ui API=$api LOGIN=$login"
           echo "ui=$ui" >> "$GITHUB_OUTPUT"
           echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "login=$login" >> "$GITHUB_OUTPUT"
           echo "| endpoint | status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| /parabank/index.htm | $ui |" >> "$GITHUB_STEP_SUMMARY"
           echo "| /services/bank/customers/12212/accounts | $api |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| /services/bank/login/john/demo (seeded login) | $login |" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$ui" != "200" ] || [ "$api" != "200" ]; then
+          if [ "$ui" != "200" ] || [ "$api" != "200" ] || [ "$login" != "200" ]; then
             echo "healthy=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=ParaBank upstream unhealthy::UI=$ui API=$api. The demo suites are skipped because the vendor is down (5xx/429/timeout); this is not a repository defect."
+            echo "::warning title=ParaBank upstream unhealthy::UI=$ui API=$api LOGIN=$login. The demo suites are skipped because the vendor is down or its seeded data is gone (5xx/429/timeout/400 on login); this is not a repository defect."
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Suites skipped: ParaBank is unhealthy (UI=$ui, API=$api).** This is a vendor outage, not a test failure." >> "$GITHUB_STEP_SUMMARY"
+            echo "**Suites skipped: ParaBank is unhealthy (UI=$ui, API=$api, LOGIN=$login).** This is a vendor outage, not a test failure." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "healthy=true" >> "$GITHUB_OUTPUT"
             echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -359,6 +368,7 @@ jobs:
           HEALTHY: ${{ needs.upstream.outputs.healthy }}
           UI_CODE: ${{ needs.upstream.outputs.ui }}
           API_CODE: ${{ needs.upstream.outputs.api }}
+          LOGIN_CODE: ${{ needs.upstream.outputs.login }}
           UPSTREAM_RESULT: ${{ needs.upstream.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           SUITE_API_RESULT: ${{ needs.api.result }}

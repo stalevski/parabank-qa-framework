@@ -211,6 +211,11 @@ showed a green repo that was not green.
 - **Web**, **known-defect pins** and **shuffled smoke** stay non-blocking - a
   Cloudflare 429 in a browser run must not hide the API signal - but they record
   their real step outcome, and the verdict reads it.
+- The upstream probe checks three things, not one: the UI page, a
+  `/services/bank/**` read, and the seeded `john/demo` login every suite starts
+  with. On 2026-11-21 the first two answered 200 while login returned 400 (a
+  vendor-side data reset), which is how a 200-only probe turns a vendor outage
+  into a red API suite.
 - The verdict **fails the run** when any suite failed, or when a suite was
   selected and never ran while ParaBank was healthy. It **does not fail** when
   the upstream probe found the vendor unhealthy: it says `not-verified` instead,

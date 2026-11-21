@@ -34,6 +34,7 @@ UPSTREAM_RESULT=${UPSTREAM_RESULT:-}
 LINT_RESULT=${LINT_RESULT:-}
 UI_CODE=${UI_CODE:-unknown}
 API_CODE=${API_CODE:-unknown}
+LOGIN_CODE=${LOGIN_CODE:-unknown}
 VERDICT_FILE=${VERDICT_FILE:-run-verdict.json}
 SUMMARY_FILE=${SUMMARY_FILE:-${RUNNER_TEMP:-.}/run-verdict.md}
 
@@ -159,7 +160,7 @@ suite_row() { # "<name>": "<state>" for the JSON payload
   fi
 }
 
-json="{\"verdict\":\"${verdict}\",\"event\":\"${EVENT}\",\"layer\":\"${LAYER}\",\"upstream\":{\"healthy\":${HEALTHY},\"uiStatus\":\"${UI_CODE}\",\"apiStatus\":\"${API_CODE}\"},\"suites\":{"
+json="{\"verdict\":\"${verdict}\",\"event\":\"${EVENT}\",\"layer\":\"${LAYER}\",\"upstream\":{\"healthy\":${HEALTHY},\"uiStatus\":\"${UI_CODE}\",\"apiStatus\":\"${API_CODE}\",\"loginStatus\":\"${LOGIN_CODE}\"},\"suites\":{"
 first=1
 for suite in "${SUITES[@]}"; do
   [ "$first" -eq 0 ] && json+=","
@@ -176,7 +177,7 @@ printf '%s\n' "$json" >"$VERDICT_FILE"
   echo ""
   echo "| field | value |"
   echo "|---|---|"
-  echo "| upstream | healthy=${HEALTHY} (UI ${UI_CODE} / API ${API_CODE}) |"
+  echo "| upstream | healthy=${HEALTHY} (UI ${UI_CODE} / API ${API_CODE} / login ${LOGIN_CODE}) |"
   echo "| lint | ${LINT_RESULT} |"
   for suite in "${SUITES[@]}"; do
     echo "| ${suite} | $(suite_row "$suite") |"
@@ -187,7 +188,7 @@ printf '%s\n' "$json" >"$VERDICT_FILE"
       echo "**Every selected suite ran and passed.** This run certifies the branch against ParaBank as it was at probe time."
       ;;
     not-verified)
-      echo "**NOT VERIFIED - no demo suite ran.** ParaBank answered UI=${UI_CODE} / API=${API_CODE}, so the suites were skipped. This is a vendor outage (5xx / 429 / Cloudflare 1015), not a repository defect - but this run proves nothing about the tests either. Re-run later or run \`npm run verify\` / \`npm run verify:api\` locally."
+      echo "**NOT VERIFIED - no demo suite ran.** ParaBank answered UI=${UI_CODE} / API=${API_CODE} / seeded login ${LOGIN_CODE}, so the suites were skipped. This is a vendor outage or a vendor-side data reset (5xx / 429 / Cloudflare 1015 / 400 on login), not a repository defect - but this run proves nothing about the tests either. Re-run later or run \`npm run verify\` / \`npm run verify:api\` locally."
       ;;
     fail)
       echo "**FAILED.** Details:"
@@ -216,7 +217,7 @@ case "$verdict" in
     exit 1
     ;;
   not-verified)
-    echo "::warning title=CI verdict: NOT VERIFIED (vendor unhealthy)::UI=${UI_CODE} API=${API_CODE} - the demo suites were skipped, so this run says nothing about the tests."
+    echo "::warning title=CI verdict: NOT VERIFIED (vendor unhealthy)::UI=${UI_CODE} API=${API_CODE} login=${LOGIN_CODE} - the demo suites were skipped, so this run says nothing about the tests."
     exit 0
     ;;
   *)
